@@ -5,8 +5,10 @@ import { realpathSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createAcpObserverFromEnv } from '@buzz-agent-observability/acp-observer'
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
+const harnessVersion = '0.1.1-rc.2'
 const modelId = process.env.DSH_MODEL_ID ?? 'ds-0731'
 const modelName = process.env.DSH_MODEL_NAME ?? 'DeepSeek V4 Flash'
 const providerName = process.env.DSH_PROVIDER_NAME ?? 'Twin DGX Spark'
@@ -21,6 +23,13 @@ const allowedMcpEnv = new Set([
   'BUZZ_GIT_ORIGIN_AGENT_NAME',
 ])
 const mcpConfigureTimeoutMs = Number(process.env.DSH_MCP_STARTUP_TIMEOUT_MS ?? 65_000)
+const telemetry = createAcpObserverFromEnv({
+  harness: 'deepseek',
+  harnessVersion,
+  model: modelId,
+  producerName: 'buzz-deepseek-harness',
+  producerVersion: '0.1.0',
+})
 
 function modelConfigOptions() {
   return [{
@@ -43,6 +52,7 @@ function requestKey(id) {
 }
 
 function writeProtocolMessage(message) {
+  telemetry.observeServerMessage(message)
   process.stdout.write(`${JSON.stringify(message)}\n`)
 }
 
@@ -180,9 +190,14 @@ clientLines.on('line', (line) => {
     try {
       message = JSON.parse(line)
     } catch {
+      telemetry.observeProtocolAnomaly({
+        kind: 'malformed_client_json',
+        lineBytes: Buffer.byteLength(line),
+      })
       server.stdin.write(`${line}\n`)
       return
     }
+    telemetry.observeClientMessage(message)
 
     if (message?.method === 'session/set_config_option' && message?.params?.configId === 'model') {
       if (message.params.value !== modelId) {
@@ -227,6 +242,10 @@ serverLines.on('line', (line) => {
   try {
     message = JSON.parse(line)
   } catch {
+    telemetry.observeProtocolAnomaly({
+      kind: 'malformed_server_json',
+      lineBytes: Buffer.byteLength(line),
+    })
     process.stdout.write(`${line}\n`)
     return
   }
@@ -240,7 +259,7 @@ serverLines.on('line', (line) => {
       message.result.agentInfo = {
         name: 'deepseek-harness-acp',
         title: 'DeepSeek Harness',
-        version: '0.1.1-rc.2',
+        version: harnessVersion,
       }
     } else if (method === 'session/new' && message.result) {
       message.result.configOptions = modelConfigOptions()
@@ -252,9 +271,17 @@ serverLines.on('line', (line) => {
 
 clientLines.on('close', () => server.stdin.end())
 
+let exiting = false
+function exitWithTelemetry(code, signal = null) {
+  if (exiting) return
+  exiting = true
+  telemetry.observeProcessExit({ code, signal })
+  void telemetry.flush({ deadlineMs: 50 }).finally(() => process.exit(code))
+}
+
 server.on('error', (error) => {
   process.stderr.write(`deepseek-harness-acp: failed to start ACP server: ${error.message}\n`)
-  process.exit(1)
+  exitWithTelemetry(1)
 })
 
 server.on('exit', (code, signal) => {
@@ -263,7 +290,7 @@ server.on('exit', (code, signal) => {
     pending.reject(new Error('DeepSeek Harness exited while starting Buzz MCP'))
   }
   const signalExitCode = signal === 'SIGINT' ? 130 : 143
-  process.exit(code ?? signalExitCode)
+  exitWithTelemetry(code ?? signalExitCode, signal)
 })
 
 for (const signal of ['SIGINT', 'SIGTERM']) {

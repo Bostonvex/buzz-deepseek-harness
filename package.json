@@ -46,6 +46,7 @@
     "smoke:tools": "node ./smoke-tools.mjs"
   },
   "dependencies": {
+    "@buzz-agent-observability/acp-observer": "https://github.com/Bostonvex/buzz-agent-observability/archive/68335d0585904c96f86eb22c63183ef01e7006ab.tar.gz",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@deepseek-ai/dsh-acp-demo": "0.1.1-rc.2",
     "@deepseek-ai/dsh-bash-sandbox": "0.1.1-rc.2",
