@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Buzz recognizes this basename and supplies its local reply MCP credentials.
+# The compatibility proxy validates, mounts, and strips that MCP configuration
+# before calling the official DeepSeek ACP bridge.
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec "$SCRIPT_DIR/deepseek-harness-acp" "$@"

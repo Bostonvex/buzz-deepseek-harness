@@ -1,0 +1,66 @@
+{
+  "name": "buzz-deepseek-harness",
+  "version": "0.1.0",
+  "description": "A secure ACP compatibility bridge between Buzz and DeepSeek Harness",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bostonvex/buzz-deepseek-harness.git"
+  },
+  "homepage": "https://github.com/Bostonvex/buzz-deepseek-harness#readme",
+  "bugs": {
+    "url": "https://github.com/Bostonvex/buzz-deepseek-harness/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "buzz-deepseek-harness": "./bin/buzz-deepseek-harness.mjs"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "buzz-acp-compat.mjs",
+    "buzz-mcp-control.mjs",
+    "mcp-schema-proxy.mjs",
+    "smoke-buzz-mcp.mjs",
+    "smoke-cancel.mjs",
+    "codex-acp",
+    "deepseek-harness-acp",
+    "cordis.yml",
+    "schema-audit.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "install:buzz": "node ./bin/buzz-deepseek-harness.mjs install",
+    "doctor": "node ./bin/buzz-deepseek-harness.mjs doctor",
+    "uninstall:buzz": "node ./bin/buzz-deepseek-harness.mjs uninstall",
+    "start": "dsh-acp-demo --config ./cordis.yml",
+    "test": "node --test test/*.test.mjs",
+    "schema:audit": "node ./schema-audit.mjs",
+    "smoke": "node ./smoke.mjs",
+    "smoke:buzz-mcp": "node ./smoke-buzz-mcp.mjs",
+    "smoke:cancel": "node ./smoke-cancel.mjs",
+    "smoke:tools": "node ./smoke-tools.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@deepseek-ai/dsh-acp-demo": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-bash-sandbox": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-compaction-basic": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-fs-observation-policy": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-fs-sandbox": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-llm-pi-ai": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-mcp-client": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-repeat-tool-reminder": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-sandbox-local": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-sandbox-policy": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-subprocess-local": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-token-meter": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-tool-fs": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-tool-todo": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-user-approval": "0.1.1-rc.2"
+  }
+}

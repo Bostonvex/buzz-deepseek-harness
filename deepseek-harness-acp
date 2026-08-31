@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# Buzz-facing implementation entry point. The codex-acp compatibility alias is
+# used by Buzz so it supplies its reply MCP; this script remains useful for
+# direct ACP clients and smoke tests.
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+export DSH_LOCAL_API_KEY="${DSH_LOCAL_API_KEY:-local}"
+export DSH_PERMISSION_MODE="${DSH_PERMISSION_MODE:-workspace-write}"
+export DSH_ACP_SESSIONS_ROOT="${DSH_ACP_SESSIONS_ROOT:-${HOME}/.dsh/acp-sessions}"
+
+exec "${DSH_NODE_BIN:-node}" "$SCRIPT_DIR/buzz-acp-compat.mjs" "$@"
