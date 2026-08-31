@@ -51,13 +51,15 @@ DeepSeek Harness 0.1.1-rc.2 and Buzz do not connect cleanly without an adapter:
 - Large MCP tool-schema `maxLength` values can make llama.cpp-derived grammar
   generators fail with `Failed to initialize samplers: failed to parse grammar`.
 - DeepSeek Harness scrubs credential-shaped environment variables from Bash,
-  including the Buzz seat credentials required by the authenticated `buzz` CLI.
+  including the Buzz seat and configured GitHub credentials required by the
+  authenticated `buzz` and `gh` workflows.
 
 This bridge validates and mounts exactly Buzz's local MCP sidecar, removes the
 unsupported MCP array before forwarding `session/new`, caps model-facing schema
-string lengths at 2,000, and restores only the small Buzz environment allowlist
-needed by Bash-based Buzz commands. Provider API keys and unrelated credentials
-remain scrubbed from the built-in Bash environment.
+string lengths at 2,000, and restores only a small, explicit shell environment
+allowlist needed by Bash-based Buzz and GitHub commands. Provider API keys,
+1Password credentials, and unrelated credentials remain scrubbed from the
+built-in Bash environment.
 
 ## Architecture
 
@@ -418,12 +420,17 @@ agent is still privileged software:
   are rejected.
 - The MCP proxy starts with a minimal operating-system environment and caps
   model-facing schemas.
-- Provider API keys, GitHub tokens, and unrelated credentials remain scrubbed
-  from built-in Bash commands.
+- Provider API keys, 1Password credentials, and unrelated credentials remain
+  scrubbed from built-in Bash commands.
 - `BUZZ_PRIVATE_KEY`, `BUZZ_RELAY_URL`, `BUZZ_AUTH_TAG`, and
   `BUZZ_ACP_DISPLAY_NAME` are restored to Bash when Buzz supplies them. This is
   required for the authenticated `buzz` CLI, and it also means commands chosen
   by the agent can act as that Buzz seat.
+- `GH_TOKEN` and `GH_TOKEN_MERGE` are restored to Bash only when Buzz supplies a
+  non-empty value in that agent's trusted parent environment. They are not sent
+  to the Buzz MCP sidecar. Commands chosen by the agent can exercise every
+  GitHub permission granted to those tokens, so configure them per agent unless
+  every managed agent intentionally needs the same identity and scope.
 
 Use a trusted model endpoint, keep the default `workspace-write` policy unless
 you have a specific reason to change it, review high-impact requests, and

@@ -89,3 +89,28 @@ test('untrusted MCP executables are rejected', async () => {
     child.kill('SIGTERM')
   }
 })
+
+test('GitHub credentials are rejected from the MCP sidecar environment', async () => {
+  const { child, connection } = startBridge(fakeMcp)
+  try {
+    await initialize(connection)
+    await assert.rejects(
+      connection.newSession({
+        cwd: root,
+        mcpServers: [{
+          name: 'buzz-dev-mcp',
+          command: fakeMcp,
+          args: [],
+          env: [
+            { name: 'BUZZ_RELAY_URL', value: 'ws://127.0.0.1:1' },
+            { name: 'BUZZ_PRIVATE_KEY', value: 'test-only' },
+            { name: 'GH_TOKEN', value: 'must-not-reach-mcp' },
+          ],
+        }],
+      }),
+      /Unexpected Buzz MCP environment variable: GH_TOKEN/,
+    )
+  } finally {
+    child.kill('SIGTERM')
+  }
+})

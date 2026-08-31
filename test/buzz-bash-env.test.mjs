@@ -7,8 +7,10 @@ import Subprocess from '@deepseek-ai/dsh-subprocess-local'
 
 import BuzzBashSandboxExecutor, {
   BUZZ_SHELL_ENV_KEYS,
-  buildBuzzShellEnv,
-  withBuzzShellEnv,
+  GITHUB_SHELL_ENV_KEYS,
+  TRUSTED_SHELL_ENV_KEYS,
+  buildTrustedShellEnv,
+  withTrustedShellEnv,
 } from '../buzz-bash-sandbox.mjs'
 
 const buzzEnv = {
@@ -18,43 +20,58 @@ const buzzEnv = {
   BUZZ_ACP_DISPLAY_NAME: 'Test Implementer',
 }
 
-test('only the allowlisted Buzz environment reaches bash', () => {
-  assert.deepEqual(buildBuzzShellEnv({
-    ...buzzEnv,
+const githubEnv = {
+  GH_TOKEN: 'test-general-github-token',
+  GH_TOKEN_MERGE: 'test-merge-github-token',
+}
+
+const trustedEnv = {
+  ...buzzEnv,
+  ...githubEnv,
+}
+
+test('only the explicitly trusted agent environment reaches bash', () => {
+  assert.deepEqual(buildTrustedShellEnv({
+    ...trustedEnv,
     OPENAI_API_KEY: 'must-not-pass',
-    GH_TOKEN: 'must-not-pass',
     DSH_LOCAL_API_KEY: 'must-not-pass',
+    OP_SERVICE_ACCOUNT_TOKEN: 'must-not-pass',
     PATH: '/bin',
-  }), buzzEnv)
+  }), trustedEnv)
   assert.deepEqual(Object.keys(buzzEnv), [...BUZZ_SHELL_ENV_KEYS])
+  assert.deepEqual(Object.keys(githubEnv), [...GITHUB_SHELL_ENV_KEYS])
+  assert.deepEqual(Object.keys(trustedEnv), [...TRUSTED_SHELL_ENV_KEYS])
 })
 
-test('empty and missing Buzz values are not synthesized', () => {
-  assert.deepEqual(buildBuzzShellEnv({
+test('empty and missing trusted values are not synthesized', () => {
+  assert.deepEqual(buildTrustedShellEnv({
     BUZZ_PRIVATE_KEY: '',
     BUZZ_RELAY_URL: 'wss://relay.example.test',
+    GH_TOKEN: '',
   }), {
     BUZZ_RELAY_URL: 'wss://relay.example.test',
   })
 })
 
-test('trusted seat values override an earlier request overlay', () => {
+test('trusted parent values override an earlier request overlay', () => {
   const request = {
     command: 'buzz messages send --help',
     env: {
       KEEP_ME: 'yes',
       BUZZ_PRIVATE_KEY: 'spoofed',
+      GH_TOKEN_MERGE: 'spoofed',
     },
   }
 
-  const overlaid = withBuzzShellEnv(request, buzzEnv)
+  const overlaid = withTrustedShellEnv(request, trustedEnv)
   assert.deepEqual(overlaid.env, {
     KEEP_ME: 'yes',
-    ...buzzEnv,
+    ...trustedEnv,
   })
   assert.deepEqual(request.env, {
     KEEP_ME: 'yes',
     BUZZ_PRIVATE_KEY: 'spoofed',
+    GH_TOKEN_MERGE: 'spoofed',
   })
 })
 
@@ -74,10 +91,10 @@ test('executor resolves the Buzz overlay into the explicit child environment', (
   }
 
   const previous = Object.fromEntries(
-    BUZZ_SHELL_ENV_KEYS.map((key) => [key, process.env[key]]),
+    TRUSTED_SHELL_ENV_KEYS.map((key) => [key, process.env[key]]),
   )
   try {
-    Object.assign(process.env, buzzEnv)
+    Object.assign(process.env, trustedEnv)
     const resolved = executor.resolve({
       command: 'buzz --version',
       env: { KEEP_ME: 'yes' },
@@ -85,7 +102,7 @@ test('executor resolves the Buzz overlay into the explicit child environment', (
     })
     assert.deepEqual(resolved.env, {
       KEEP_ME: 'yes',
-      ...buzzEnv,
+      ...trustedEnv,
     })
   } finally {
     for (const [key, value] of Object.entries(previous)) {
@@ -95,23 +112,23 @@ test('executor resolves the Buzz overlay into the explicit child environment', (
   }
 })
 
-test('real bash subprocess receives Buzz values while unrelated credentials stay scrubbed', async () => {
+test('real bash subprocess receives Buzz and GitHub values while unrelated credentials stay scrubbed', async () => {
   const root = new Context()
   const changedKeys = [
-    ...BUZZ_SHELL_ENV_KEYS,
+    ...TRUSTED_SHELL_ENV_KEYS,
     'OPENAI_API_KEY',
-    'GH_TOKEN',
     'DSH_LOCAL_API_KEY',
+    'OP_SERVICE_ACCOUNT_TOKEN',
   ]
   const previous = Object.fromEntries(
     changedKeys.map((key) => [key, process.env[key]]),
   )
 
   try {
-    Object.assign(process.env, buzzEnv)
+    Object.assign(process.env, trustedEnv)
     process.env.OPENAI_API_KEY = 'must-not-pass'
-    process.env.GH_TOKEN = 'must-not-pass'
     process.env.DSH_LOCAL_API_KEY = 'must-not-pass'
+    process.env.OP_SERVICE_ACCOUNT_TOKEN = 'must-not-pass'
 
     await root.plugin(Subprocess)
     await root.plugin(Sandbox)
@@ -127,9 +144,11 @@ test('real bash subprocess receives Buzz values while unrelated credentials stay
         'test "$BUZZ_RELAY_URL" = wss://relay.example.test',
         'test "$BUZZ_AUTH_TAG" = test-owner-attestation',
         'test "$BUZZ_ACP_DISPLAY_NAME" = "Test Implementer"',
+        'test "$GH_TOKEN" = test-general-github-token',
+        'test "$GH_TOKEN_MERGE" = test-merge-github-token',
         'test -z "$OPENAI_API_KEY"',
-        'test -z "$GH_TOKEN"',
         'test -z "$DSH_LOCAL_API_KEY"',
+        'test -z "$OP_SERVICE_ACCOUNT_TOKEN"',
       ].join(' && '),
       sandboxPolicy: null,
     }))
