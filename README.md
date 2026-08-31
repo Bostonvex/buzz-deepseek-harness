@@ -37,6 +37,8 @@ scheduling; it only needs a network-reachable OpenAI-compatible API.
 - [Security and trust model](#security-and-trust-model)
 - [Uninstall](#uninstall)
 - [Development](#development)
+- [Related harnesses](#related-harnesses)
+- [License](#license)
 
 ## What this project fixes
 
@@ -461,6 +463,10 @@ npm run schema:audit
 The public CI workflow runs the same test and schema-audit gates. Repository
 write access is limited to the maintainer; external contributions are welcome
 through reviewed pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Related harnesses
+
+See the [Custom Coding Harnesses for Buzz](https://github.com/Bostonvex/buzz-custom-harnesses) catalog for a hardware-neutral comparison with the [Qwen Code harness](https://github.com/Bostonvex/buzz-qwen-code-harness) and the attributed [ZCode harness](https://github.com/Bostonvex/buzz-zcode-harness) fork.
 
 ## License
 
