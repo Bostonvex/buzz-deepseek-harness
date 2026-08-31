@@ -6,6 +6,7 @@ import { createInterface } from 'node:readline'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createAcpObserverFromEnv } from '@buzz-agent-observability/acp-observer'
+import { modelChildEnvironment, startModelProxySidecar } from './model-proxy-sidecar.mjs'
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const harnessVersion = '0.1.1-rc.2'
@@ -23,13 +24,21 @@ const allowedMcpEnv = new Set([
   'BUZZ_GIT_ORIGIN_AGENT_NAME',
 ])
 const mcpConfigureTimeoutMs = Number(process.env.DSH_MCP_STARTUP_TIMEOUT_MS ?? 65_000)
+const modelProxy = await startModelProxySidecar({
+  upstreamBaseUrl: process.env.DSH_BASE_URL ?? 'http://127.0.0.1:8000/v1',
+  model: modelId,
+  harness: 'deepseek',
+})
+const telemetryEnvironment = modelProxy.contextUrl
+  ? { ...process.env, BUZZ_MODEL_PROXY_CONTEXT_URL: modelProxy.contextUrl }
+  : process.env
 const telemetry = createAcpObserverFromEnv({
   harness: 'deepseek',
   harnessVersion,
   model: modelId,
   producerName: 'buzz-deepseek-harness',
   producerVersion: '0.1.0',
-})
+}, telemetryEnvironment)
 
 function modelConfigOptions() {
   return [{
@@ -139,7 +148,7 @@ const server = spawn(
   ['--config', join(scriptDir, 'cordis.yml'), ...process.argv.slice(2)],
   {
     cwd: process.cwd(),
-    env: process.env,
+    env: modelChildEnvironment(process.env, 'DSH_BASE_URL', modelProxy.modelBaseUrl),
     stdio: ['pipe', 'pipe', 'inherit', 'ipc'],
   },
 )
@@ -276,8 +285,18 @@ function exitWithTelemetry(code, signal = null) {
   if (exiting) return
   exiting = true
   telemetry.observeProcessExit({ code, signal })
-  void telemetry.flush({ deadlineMs: 50 }).finally(() => process.exit(code))
+  void Promise.allSettled([
+    telemetry.flush({ deadlineMs: 50 }),
+    modelProxy.stop(),
+  ]).finally(() => process.exit(code))
 }
+
+modelProxy.child?.once('exit', () => {
+  if (!exiting && server.exitCode === null && server.signalCode === null) {
+    process.stderr.write('deepseek-harness-acp: model proxy exited; restarting harness process\n')
+    server.kill('SIGTERM')
+  }
+})
 
 server.on('error', (error) => {
   process.stderr.write(`deepseek-harness-acp: failed to start ACP server: ${error.message}\n`)

@@ -12,6 +12,7 @@
         baseURL: !!js "process.env.DSH_BASE_URL ?? 'http://127.0.0.1:8000/v1'"
         compat:
           supportsDeveloperRole: false
+          supportsUsageInStreaming: true
           maxTokensField: max_tokens
         streamIdleTimeoutMs: 600000
         retryPolicy:
