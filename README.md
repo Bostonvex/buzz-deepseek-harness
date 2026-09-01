@@ -16,6 +16,11 @@ server, a multi-node inference cluster, a container platform, or a hosted API.
 The bridge does not manage accelerators, model loading, sharding, or cluster
 scheduling; it only needs a network-reachable OpenAI-compatible API.
 
+When Buzz telemetry is enabled, the ACP compatibility layer observes live
+`tool_call` and `tool_call_update` notifications. Terminal turns therefore
+report an exact observed tool count, including a meaningful zero; telemetry
+remains metadata-only and fail-open.
+
 > [!IMPORTANT]
 > The repository defaults describe the deployment it was originally built for:
 > model id `ds-0731`, a 1,048,576-token context window, and 16,384 maximum output

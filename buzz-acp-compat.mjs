@@ -36,6 +36,7 @@ const telemetry = createAcpObserverFromEnv({
   harness: 'deepseek',
   harnessVersion,
   model: modelId,
+  toolObservationMode: 'acp_updates',
   producerName: 'buzz-deepseek-harness',
   producerVersion: '0.1.0',
 }, telemetryEnvironment)
